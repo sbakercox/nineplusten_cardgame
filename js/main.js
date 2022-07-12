@@ -19,7 +19,6 @@ function getDeck(){
     fetch(`https://www.deckofcardsapi.com/api/deck/${deck}/shuffle/`)
       .then(res => res.json())
       .then(data => {
-        console.log(data)
       getCards()
       })
       .catch(err => {
@@ -36,9 +35,13 @@ function getCards(){
   fetch(deal)
       .then(res => res.json())
       .then(data => {
-        clearCards()
-        showCards(data.cards)
-        showValues(data.cards)
+        clearHands()
+        prepBotHands()
+        prepPlayerHands()
+        showBotCards(data.cards)
+        showPlayerCards(data.cards)
+        showBotValues(data.cards)
+        showPlayerValues(data.cards)
         console.log(data.remaining)
       })
       .catch(err => {
@@ -46,56 +49,78 @@ function getCards(){
       });
 }
 
-function clearCards() {
-  let activeBotCards = document.getElementsByClassName("botCards")
-  let activePlayerCards = document.getElementsByClassName("playCards")
-  while(activeBotCards.length !==0){
-    activeBotCards[0].remove()
-  }
-  while((activePlayerCards.length !==0)){
-    activePlayerCards[0].remove()
+function clearHands() {
+  let hands = document.getElementsByClassName("hands")
+  while(hands.length !==0){
+    hands[0].remove()
   }
 }
 
-function showCards(arr) {
+function prepBotHands() {
+  let botHandSpace = document.createElement("div")
+  botHandSpace.id = "primaryBotHand"
+  botHandSpace.className = "hands"
+  document.querySelector('#botHand').appendChild(botHandSpace)
+}
+
+function prepPlayerHands() {
+  let playerHandSpace = document.createElement("div")
+  playerHandSpace.id = "primaryPlayerHand"
+  playerHandSpace.className = "hands"
+  document.querySelector('#playerHand').appendChild(playerHandSpace)
+}
+
+function showBotCards(arr) {
   let botCards = arr.filter((elm,idx) => idx % 2 === 0)
-  let playerCards = arr.filter((elm,idx) => idx % 2 === 1)
   let botImgs = botCards.map((obj,idx) => botCards[idx].image)
-  let playerImgs = playerCards.map((obj,idx) => playerCards[idx].image)
+  sessionStorage.setItem('bimgs',botImgs)
   botImgs.forEach((elm) => {
     let space = document.createElement("img")
     space.className = "botCards"
     space.src = elm
-    document.querySelector('#botHand').appendChild(space)
+    document.querySelector('#primaryBotHand').appendChild(space)
   })
+}
+
+function showPlayerCards(arr) {
+  let playerCards = arr.filter((elm,idx) => idx % 2 === 1)
+  let playerImgs = playerCards.map((obj,idx) => playerCards[idx].image)
+  sessionStorage.setItem('pimgs',playerImgs)
   playerImgs.forEach((elm) => {
     let space = document.createElement("img")
     space.className = "playCards"
     space.src = elm
-    document.querySelector('#playerHand').appendChild(space)
+    document.querySelector('#primaryPlayerHand').appendChild(space)
   })
 }
 
-function showValues(arr) {
+function showBotValues(arr) {
   let botCards = arr.filter((elm,idx) => idx % 2 === 0)
-  let playerCards = arr.filter((elm,idx) => idx % 2 === 1)
-  let botValues = botCards.map((obj,idx) => royalCards(botCards[idx].value))
-  localStorage.setItem('barr', botValues)
-  let playerValues = playerCards.map((obj,idx) => royalCards(playerCards[idx].value))
-  localStorage.setItem('parr', playerValues)
-  document.querySelector('#botTotalValue').innerText = cardValues(botValues).reduce((sum, num) => sum + num,0)
-  document.querySelector('#playerTotalValue').innerText = cardValues(playerValues).reduce((sum, num) => sum + num,0)
+  let botValues = botCards.map((obj,idx) => botCards[idx].value)
+  let botNewValues = botCards.map((obj,idx) => royalCards(botCards[idx].value))
+  sessionStorage.setItem('bVals', botValues)
+  sessionStorage.setItem('bNums', botNewValues)
+  document.querySelector('#botTotalValue').innerText = cardValues(botNewValues).reduce((sum, num) => sum + num,0)
 }
-// Function issue- if player starts with 2 Aces in hand, will return 22 rather than 12
+
+function showPlayerValues(arr) {
+  let playerCards = arr.filter((elm,idx) => idx % 2 === 1)
+  let playerValues = playerCards.map((obj,idx) => playerCards[idx].value)
+  let playerNewValues = playerCards.map((obj,idx) => royalCards(playerCards[idx].value))
+  sessionStorage.setItem('pVals', playerValues)
+  sessionStorage.setItem('pNums', playerNewValues)
+  document.querySelector('#playerTotalValue').innerText = cardValues(playerNewValues).reduce((sum, num) => sum + num,0)
+}
+// Function below breaks if player starts with 2 Aces in hand, will return 22 rather than 12 nor does it round down when needed (look at addPlayerValues for further adjustments)
 function cardValues(arr) {
   let goal = 21
-  let intCount = arr.map(elm => royalCards(elm))
-  let intSum = intCount.reduce((sum, num) => sum + num,0)
-  let newCount = intCount.map(elm => {
-    if((elm == 0) && (goal - intSum >= 11)){
+  let initialCount = arr.map(elm => royalCards(elm))
+  let initialSum = initialCount.reduce((sum, num) => sum + num,0)
+  let newCount = initialCount.map(elm => {
+    if((elm == 0) && (goal - initialSum >= 11)){
       return 11;
   }
-    else if((elm == 0) && (goal - intSum < 11)){
+    else if((elm == 0) && (goal - initialSum < 11)){
       return 1;
     }
     return elm;
@@ -129,9 +154,9 @@ function drawCards(){
   fetch(draw)
       .then(res => res.json())
       .then(data => {
-        console.log(data.cards)
         addPlayerCards(data.cards)
         addPlayerValues(data.cards)
+        console.log(data.remaining)
       })
       .catch(err => {
           console.log(`error ${err}`)
@@ -144,25 +169,98 @@ function addPlayerCards(arr) {
     let space = document.createElement("img")
     space.className = "playCards"
     space.src = elm
-    document.querySelector('#playerHand').appendChild(space)
+    document.querySelector('#primaryPlayerHand').appendChild(space)
   })
 }
 
 function addPlayerValues(arr) {
-  let priorValues = localStorage.getItem('parr').split(',').map(elm => Number(elm))
+  let priorValues = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
   let newCardValue = arr.map((obj,idx) => royalCards(arr[idx].value))
   let newTotalValue = cardValues(priorValues.concat(newCardValue))
-  localStorage.setItem('parr', newTotalValue)
+  sessionStorage.setItem('pNums', newTotalValue)
   document.querySelector('#playerTotalValue').innerText = newTotalValue.reduce((sum, num) => sum + num,0)
 }
 
-document.querySelector('#splitCards').addEventListener('click', splitCards)
-function splitCards(){
-  
+document.querySelector('#splitHands').addEventListener('click', splitHands)
+function splitHands(){
+  let handBaseVal = sessionStorage.getItem('pVals')
+  let handNumVal = sessionStorage.getItem('pNums')
+  if ((handNumVal.split(',').length === 2) && (handBaseVal.split(',')[0] === handBaseVal.split(',')[1])) {
+     return newHand()
+  }
 }
 
+function newHand() {
+  secondaryHand()
+  moveCards()
+  adjustValue() 
+}
 
-document.querySelector('#checkCards').addEventListener('click', winCondition)
+function secondaryHand() {
+  let additionalHandSpace = document.createElement("div")
+  additionalHandSpace.id = "additionalPlayerHand"
+  additionalHandSpace.className = "hands"
+  document.querySelector('#playerHand').appendChild(additionalHandSpace)
+}
+
+function moveCards() {
+  let primeHandImg = document.getElementsByClassName('playCards')
+  let primeHandSrc = sessionStorage.getItem('pimgs').split(',')
+  let secondHandSrc = []
+  secondHandSrc.push(primeHandSrc.pop())
+  sessionStorage.setItem('pimgs',primeHandSrc)
+  sessionStorage.setItem('pimgs2',secondHandSrc)
+  primeHandImg[1].remove()
+  secondHandSrc.forEach((elm) => {
+    let space = document.createElement("img")
+    space.className = "playCards"
+    space.src = elm
+    document.querySelector('#additionalPlayerHand').appendChild(space)
+  })
+}
+
+function adjustValue() {
+  let primeValues = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
+  let secondValues = []
+  secondValues.push(primeValues.pop())
+  sessionStorage.setItem('pNums', primeValues)
+  sessionStorage.setItem('pNums2', secondValues)
+  document.querySelector('#playerTotalValue').innerText = `${primeValues.reduce((sum, num) => sum + num,0)} + ${secondValues.reduce((sum, num) => sum + num,0)}`
+}
+
+document.querySelector('#splitDraw1').addEventListener('click', splitDraw1)
+function splitDraw1(){
+  const deck = localStorage.getItem('deck')
+  const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
+
+  fetch(draw)
+      .then(res => res.json())
+      .then(data => {
+        console.log(data)
+        console.log(data.remaining)
+      })
+      .catch(err => {
+          console.log(`error ${err}`)
+      });
+}
+
+document.querySelector('#splitDraw2').addEventListener('click', splitDraw2)
+function splitDraw2(){
+  const deck = localStorage.getItem('deck')
+  const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
+
+  fetch(draw)
+      .then(res => res.json())
+      .then(data => {
+        console.log(data)
+        console.log(data.remaining)
+      })
+      .catch(err => {
+          console.log(`error ${err}`)
+      });
+}
+
+document.querySelector('#checkHands').addEventListener('click', winCondition)
 function winCondition(){
   
 }
