@@ -1,3 +1,8 @@
+function freshPage(){
+  localStorage.clear()
+  sessionStorage.clear()
+}
+
 document.querySelector('#gameStart').addEventListener('click', getDeck)
 function getDeck(){
   const newGame = `https://www.deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1`
@@ -36,6 +41,7 @@ function getCards(){
       .then(res => res.json())
       .then(data => {
         clearHands()
+        clearValues()
         prepBotHands()
         prepPlayerHands()
         showBotCards(data.cards)
@@ -43,6 +49,8 @@ function getCards(){
         showBotValues(data.cards)
         showPlayerValues(data.cards)
         console.log(data.remaining)
+        reshuffle(data.remaining)
+        instantWinOrLose()
       })
       .catch(err => {
           console.log(`error ${err}`)
@@ -54,6 +62,13 @@ function clearHands() {
   while(hands.length !==0){
     hands[0].remove()
   }
+}
+
+function clearValues() {
+let val = document.getElementsByClassName("cardValue")
+if (val.length == 3){
+  return val[2].remove()
+}
 }
 
 function prepBotHands() {
@@ -123,6 +138,9 @@ function cardValues(arr) {
     else if((elm == 0) && (goal - initialSum < 11)){
       return 1;
     }
+    else if ((elm == 0) && (initialSum == 0)){
+      return 1
+    }
     return elm;
   })
   return newCount
@@ -146,6 +164,21 @@ function royalCards(val) {
   return cardNumber
 }
 
+function reshuffle(val) {
+  const deck = localStorage.getItem('deck')
+  const shuffle = `https://www.deckofcardsapi.com/api/deck/${deck}/shuffle/`
+  if (val == 0) {
+    fetch(shuffle)
+      .then(res => res.json())
+      .then(data => {
+        console.log(data.remaining)
+      })
+      .catch(err => {
+          console.log(`error ${err}`)
+      });
+  }
+}
+
 document.querySelector('#drawCards').addEventListener('click', drawCards)
 function drawCards(){
   const deck = localStorage.getItem('deck')
@@ -157,6 +190,8 @@ function drawCards(){
         addPlayerCards(data.cards)
         addPlayerValues(data.cards)
         console.log(data.remaining)
+        instantWinOrLose()
+        reshuffle(data.remaining)
       })
       .catch(err => {
           console.log(`error ${err}`)
@@ -178,7 +213,7 @@ function addPlayerValues(arr) {
   let newCardValue = arr.map((obj,idx) => royalCards(arr[idx].value))
   let newTotalValue = cardValues(priorValues.concat(newCardValue))
   sessionStorage.setItem('pNums', newTotalValue)
-  document.querySelector('#playerTotalValue').innerText = newTotalValue.reduce((sum, num) => sum + num,0)
+  document.querySelector('#playerTotalValue').innerText = cardValues(newTotalValue).reduce((sum, num) => sum + num,0)
 }
 
 document.querySelector('#splitHands').addEventListener('click', splitHands)
@@ -198,8 +233,12 @@ function newHand() {
 
 function secondaryHand() {
   let additionalHandSpace = document.createElement("div")
+  let additionalValueSpace = document.createElement("h4")
   additionalHandSpace.id = "additionalPlayerHand"
   additionalHandSpace.className = "hands"
+  additionalValueSpace.id = "additionalPlayerValue"
+  additionalValueSpace.className = "cardValue playerHand"
+  document.querySelector('#playerHand').appendChild(additionalValueSpace)
   document.querySelector('#playerHand').appendChild(additionalHandSpace)
 }
 
@@ -225,42 +264,139 @@ function adjustValue() {
   secondValues.push(primeValues.pop())
   sessionStorage.setItem('pNums', primeValues)
   sessionStorage.setItem('pNums2', secondValues)
-  document.querySelector('#playerTotalValue').innerText = `${primeValues.reduce((sum, num) => sum + num,0)} + ${secondValues.reduce((sum, num) => sum + num,0)}`
+  document.querySelector('#playerTotalValue').innerText = primeValues.reduce((sum, num) => sum + num,0) 
+  document.querySelector('#additionalPlayerValue').innerText = secondValues.reduce((sum, num) => sum + num,0)
 }
 
-document.querySelector('#splitDraw1').addEventListener('click', splitDraw1)
-function splitDraw1(){
+document.querySelector('#splitDraw').addEventListener('click', splitDraw)
+function splitDraw(){
   const deck = localStorage.getItem('deck')
   const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
 
   fetch(draw)
       .then(res => res.json())
       .then(data => {
-        console.log(data)
+        addAdditionalCards(data.cards)
+        addAdditionalValues(data.cards)
         console.log(data.remaining)
+        instantWinOrLose()
+        reshuffle(data.remaining)
       })
       .catch(err => {
           console.log(`error ${err}`)
       });
 }
 
-document.querySelector('#splitDraw2').addEventListener('click', splitDraw2)
-function splitDraw2(){
-  const deck = localStorage.getItem('deck')
-  const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
+function addAdditionalCards(arr) {
+  let newCard = arr.map((obj,idx) => arr[idx].image)
+  newCard.forEach((elm) => {
+    let space = document.createElement("img")
+    space.className = "playCards"
+    space.src = elm
+    document.querySelector('#additionalPlayerHand').appendChild(space)
+  })
+}
 
-  fetch(draw)
-      .then(res => res.json())
-      .then(data => {
-        console.log(data)
-        console.log(data.remaining)
-      })
-      .catch(err => {
-          console.log(`error ${err}`)
-      });
+function addAdditionalValues(arr) {
+  let priorValues = sessionStorage.getItem('pNums2').split(',').map(elm => Number(elm))
+  let newCardValue = arr.map((obj,idx) => royalCards(arr[idx].value))
+  let newTotalValue = cardValues(priorValues.concat(newCardValue))
+  sessionStorage.setItem('pNums2', newTotalValue)
+  document.querySelector('#additionalPlayerValue').innerText = cardValues(newTotalValue).reduce((sum, num) => sum + num,0)
 }
 
 document.querySelector('#checkHands').addEventListener('click', winCondition)
 function winCondition(){
-  
+//  looking into async await to control the timing of the functions 
+  botDraw()
+  basicWin()
+}
+
+function botDraw() {
+  const deck = localStorage.getItem('deck')
+  const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
+  let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+  let botValueSum = cardValues(botValue).reduce((sum, num) => sum + num,0)
+  if (botValueSum === 21) {
+
+  }
+  else if ((21-botValueSum)>5){
+fetch(draw)
+      .then(res => res.json())
+      .then(data => {
+        newBotCard(data.cards)
+        newBotValues(data.cards)
+        console.log(data.remaining)
+        reshuffle(data.remaining)
+        instantWinOrLose()
+        botDraw()
+      })
+      .catch(err => {
+          console.log(`error ${err}`)
+      });
+  }
+}
+
+function newBotCard(arr) {
+  let newCard = arr.map((obj,idx) => arr[idx].image)
+  newCard.forEach((elm) => {
+    let space = document.createElement("img")
+    space.className = "playCards"
+    space.src = elm
+    document.querySelector('#primaryBotHand').appendChild(space)
+  })
+}
+
+function newBotValues(arr) {
+  let priorValues = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+  let newCardValue = arr.map((obj,idx) => royalCards(arr[idx].value))
+  let newTotalValue = cardValues(priorValues.concat(newCardValue))
+  sessionStorage.setItem('bNums', newTotalValue)
+  document.querySelector('#botTotalValue').innerText = cardValues(newTotalValue).reduce((sum, num) => sum + num,0)
+}
+
+function instantWinOrLose(){
+  let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+  let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
+  let playerValue = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
+  let playerFinalValue = cardValues(playerValue).reduce((sum, num) => sum + num,0)
+// Change the wins results from logs to html elements
+  if ((botValue.length === 2 && botFinalValue == 21) && (playerValue.length === 2 && playerFinalValue == 21)) {
+    return console.log('Draw')
+  }
+  else if (botValue.length === 2 && botFinalValue == 21) {
+    return console.log('Bot Wins')
+  }
+  else if (playerValue.length === 2 && playerFinalValue == 21) {
+    return console.log('Player Wins')
+  }
+  else if (botFinalValue > 21){
+    return console.log('Player Wins')
+  }
+  else if (playerFinalValue > 21){
+    return console.log('Bot Wins')
+  }
+}
+
+function basicWin() {
+  let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+  let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
+  let playerValue = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
+  let playerFinalValue = cardValues(playerValue).reduce((sum, num) => sum + num,0)
+// Change the wins results from logs to html elements
+  if (botFinalValue == playerFinalValue) {
+    return console.log('Draw')
+  }
+  else if ((21-playerFinalValue)<(21-botFinalValue)) {
+    return console.log('Player Wins')
+  }
+  else if ((21-botFinalValue)<(21-playerFinalValue)) {
+    return console.log('Bot Wins')  
+  }
+}
+
+function splitWin() {
+  if (condition) {
+    
+  }
 }
