@@ -228,7 +228,9 @@ function splitHands(){
 function newHand() {
   secondaryHand()
   moveCards()
-  adjustValue() 
+  adjustValue()
+  drawCards()
+  splitDraw()
 }
 
 function secondaryHand() {
@@ -279,7 +281,7 @@ function splitDraw(){
         addAdditionalCards(data.cards)
         addAdditionalValues(data.cards)
         console.log(data.remaining)
-        instantWinOrLose()
+        instantSplitWinOrLose()
         reshuffle(data.remaining)
       })
       .catch(err => {
@@ -395,8 +397,58 @@ function basicWin() {
   }
 }
 
+function instantSplitWinOrLose(){
+// This function needs to check all hands for instant wins 
+let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
+let playerHand1Value = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
+let playerHand1FV = cardValues(playerHand1Value).reduce((sum, num) => sum + num,0)
+let playerHand2Value = sessionStorage.getItem('pNums2').split(',').map(elm => Number(elm))
+let playerHand2FV = cardValues(playerHand2Value).reduce((sum, num) => sum + num,0)
+// Change the wins results from logs to html elements
+  if ((botValue.length === 2 && botFinalValue == 21) && (playerHand1Value.length === 2 && playerHand1FV == 21) && (playerHand2Value.length === 2 && playerHand2FV == 21)) {
+    return console.log('Draw')
+  }
+  else if (botValue.length === 2 && botFinalValue == 21) {
+    return console.log('Bot Wins')
+  }
+  else if (playerHand1Value.length === 2 && playerHand1FV == 21) {
+    return console.log('Player Hand 1 Wins')
+  }
+  else if (playerHand2Value.length === 2 && playerHand2FV == 21) {
+    return console.log('Player Hand 2 Wins')
+  }
+  else if (botFinalValue > 21){
+    return console.log('Player Wins')
+  }
+  else if (playerHand1FV > 21){
+    return console.log('Player Hand 1 Lose')
+  }
+  else if (playerHand2FV > 21){
+    return console.log('Player Hand 2 Lose')
+  }
+}
+
 function splitWin() {
-  if (condition) {
-    
+  let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
+  let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
+  let playerHand1Value = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
+  let playerHand1FV = cardValues(playerHand1Value).reduce((sum, num) => sum + num,0)
+  let playerHand2Value = sessionStorage.getItem('pNums2').split(',').map(elm => Number(elm))
+  let playerHand2FV = cardValues(playerHand2Value).reduce((sum, num) => sum + num,0)
+  if (botFinalValue == playerHand1FV == playerHand2FV) {
+    return console.log('Draw')
+  }
+  else if (((21-playerHand1FV)<(21-botFinalValue)) && ((21-playerHand2FV)<(21-botFinalValue))) {
+    return console.log('Player Wins')
+  }
+  else if (((21-botFinalValue)<(21-playerHand1FV)) &&((21-botFinalValue)<(21-playerHand2FV))) {
+    return console.log('Bot Wins')  
+  }
+  else if (((21-playerHand1FV)<(21-botFinalValue)) && ((21-botFinalValue)<=(21-playerHand2FV))) {
+    return console.log('Player Hand 1 Wins')
+  }
+  else if (((21-botFinalValue)<=(21-playerHand1FV)) && ((21-playerHand2FV)<(21-botFinalValue))) {
+    return console.log('Player Hand 2 Wins')
   }
 }
