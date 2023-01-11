@@ -319,9 +319,7 @@ function botDraw() {
   const draw = `https://www.deckofcardsapi.com/api/deck/${deck}/draw/?count=1`
   let botValue = sessionStorage.getItem('bNums').split(',').map(elm => Number(elm))
   let botValueSum = cardValues(botValue).reduce((sum, num) => sum + num,0)
-  if (botValueSum === 21) {
-
-  }
+  if (botValueSum === 21) {}
   else if ((21-botValueSum)>5){
 fetch(draw)
       .then(res => res.json())
