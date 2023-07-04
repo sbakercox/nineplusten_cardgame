@@ -42,6 +42,7 @@ function getCards(){
       .then(data => {
         clearHands()
         clearValues()
+        clearResults()
         prepBotHands()
         prepPlayerHands()
         showBotCards(data.cards)
@@ -65,11 +66,15 @@ function clearHands() {
 }
 
 function clearValues() {
-let val = document.getElementsByClassName("cardValue")
-if (val.length == 3){
-  return val[2].remove()
+  let val = document.getElementsByClassName("cardValue")
+  if (val.length == 3){
+    return val[2].remove()
+  }
 }
-}
+
+function clearResults() {
+  document.getElementById("gameResults").innerHTML = ''
+  }
 
 function prepBotHands() {
   let botHandSpace = document.createElement("div")
@@ -126,19 +131,19 @@ function showPlayerValues(arr) {
   sessionStorage.setItem('pNums', playerNewValues)
   document.querySelector('#playerTotalValue').innerText = cardValues(playerNewValues).reduce((sum, num) => sum + num,0)
 }
-// Function below breaks if player starts with 2 Aces in hand, will return 22 rather than 12 nor does it round down when needed (look at addPlayerValues for further adjustments)
+
 function cardValues(arr) {
   let goal = 21
   let initialCount = arr.map(elm => royalCards(elm))
   let initialSum = initialCount.reduce((sum, num) => sum + num,0)
-  let newCount = initialCount.map(elm => {
-    if((elm == 0) && (goal - initialSum >= 11)){
-      return 11;
-  }
-    else if((elm == 0) && (goal - initialSum < 11)){
+  let newCount = initialCount.map((elm,ind) => {
+    if((elm == 0) && (initialSum == 0) && (ind == 1)){
       return 1;
+  }
+    else if((elm == 0) && (goal - initialSum >= 11)){
+      return 11;
     }
-    else if ((elm == 0) && (initialSum == 0)){
+    else if ((elm == 0) && (goal - initialSum < 11)){
       return 1
     }
     return elm;
@@ -167,7 +172,7 @@ function royalCards(val) {
 function reshuffle(val) {
   const deck = localStorage.getItem('deck')
   const shuffle = `https://www.deckofcardsapi.com/api/deck/${deck}/shuffle/`
-  if (val == 0) {
+  if (val < 4) {
     fetch(shuffle)
       .then(res => res.json())
       .then(data => {
@@ -309,7 +314,6 @@ function addAdditionalValues(arr) {
 
 document.querySelector('#checkHands').addEventListener('click', winCondition)
 function winCondition(){
-//  looking into async await to control the timing of the functions 
   botDraw()
   basicWin()
 }
@@ -360,21 +364,14 @@ function instantWinOrLose(){
   let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
   let playerValue = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
   let playerFinalValue = cardValues(playerValue).reduce((sum, num) => sum + num,0)
-// Change the wins results from logs to html elements
   if ((botValue.length === 2 && botFinalValue == 21) && (playerValue.length === 2 && playerFinalValue == 21)) {
-    return console.log('Draw')
+    return document.querySelector('#gameResults').innerText = 'Draw'
   }
   else if (botValue.length === 2 && botFinalValue == 21) {
-    return console.log('Bot Wins')
+    return document.querySelector('#gameResults').innerText = 'Dealer Wins'
   }
   else if (playerValue.length === 2 && playerFinalValue == 21) {
-    return console.log('Player Wins')
-  }
-  else if (botFinalValue > 21){
-    return console.log('Player Wins')
-  }
-  else if (playerFinalValue > 21){
-    return console.log('Bot Wins')
+    return document.querySelector('#gameResults').innerText = 'Player Wins'
   }
 }
 
@@ -383,17 +380,29 @@ function basicWin() {
   let botFinalValue = cardValues(botValue).reduce((sum, num) => sum + num,0)
   let playerValue = sessionStorage.getItem('pNums').split(',').map(elm => Number(elm))
   let playerFinalValue = cardValues(playerValue).reduce((sum, num) => sum + num,0)
-// Change the wins results from logs to html elements
   if (botFinalValue == playerFinalValue) {
-    return console.log('Draw')
+    return document.querySelector('#gameResults').innerText = 'Draw'
+  }
+  else if (botFinalValue > 21){
+    return document.querySelector('#gameResults').innerText = 'Dealer Bust, Player Wins'
+  }
+  else if (playerFinalValue > 21){
+    return document.querySelector('#gameResults').innerText = 'Player Bust, Dealer Wins'
   }
   else if ((21-playerFinalValue)<(21-botFinalValue)) {
-    return console.log('Player Wins')
+    return document.querySelector('#gameResults').innerText = 'Player Wins'
   }
   else if ((21-botFinalValue)<(21-playerFinalValue)) {
-    return console.log('Bot Wins')  
+    return document.querySelector('#gameResults').innerText = 'Dealer Wins' 
   }
 }
+
+// function newHandResults() {
+//     let space = document.createElement('h4')
+//     space.className = "handResults"
+//     space.src = elm
+//     document.querySelector('#primaryBotHand').appendChild(space)
+// }
 
 function instantSplitWinOrLose(){
 // This function needs to check all hands for instant wins 
@@ -405,19 +414,20 @@ let playerHand2Value = sessionStorage.getItem('pNums2').split(',').map(elm => Nu
 let playerHand2FV = cardValues(playerHand2Value).reduce((sum, num) => sum + num,0)
 // Change the wins results from logs to html elements
   if ((botValue.length === 2 && botFinalValue == 21) && (playerHand1Value.length === 2 && playerHand1FV == 21) && (playerHand2Value.length === 2 && playerHand2FV == 21)) {
-    return console.log('Draw')
+    return document.querySelector('#gameResults').innerText = 'Draw'
   }
   else if (botValue.length === 2 && botFinalValue == 21) {
-    return console.log('Bot Wins')
+    return document.querySelector('#gameResults').innerText = 'Dealer Wins'
   }
   else if (playerHand1Value.length === 2 && playerHand1FV == 21) {
-    return console.log('Player Hand 1 Wins')
+    return document.querySelector('#gameResults').innerText = 'Player Wins with Hand 1'
+    
   }
   else if (playerHand2Value.length === 2 && playerHand2FV == 21) {
-    return console.log('Player Hand 2 Wins')
+    return document.querySelector('#gameResults').innerText = 'Player Wins with Hand 2'
   }
   else if (botFinalValue > 21){
-    return console.log('Player Wins')
+    return document.querySelector('#gameResults').innerText = 'Dealer Bust, Player Wins'
   }
   else if (playerHand1FV > 21){
     return console.log('Player Hand 1 Lose')
@@ -435,13 +445,13 @@ function splitWin() {
   let playerHand2Value = sessionStorage.getItem('pNums2').split(',').map(elm => Number(elm))
   let playerHand2FV = cardValues(playerHand2Value).reduce((sum, num) => sum + num,0)
   if (botFinalValue == playerHand1FV == playerHand2FV) {
-    return console.log('Draw')
+    return document.querySelector('#gameResults').innerText = 'Draw'
   }
   else if (((21-playerHand1FV)<(21-botFinalValue)) && ((21-playerHand2FV)<(21-botFinalValue))) {
-    return console.log('Player Wins')
+    return document.querySelector('#gameResults').innerText = 'Player Wins'
   }
   else if (((21-botFinalValue)<(21-playerHand1FV)) &&((21-botFinalValue)<(21-playerHand2FV))) {
-    return console.log('Bot Wins')  
+    return document.querySelector('#gameResults').innerText = 'Dealer Wins' 
   }
   else if (((21-playerHand1FV)<(21-botFinalValue)) && ((21-botFinalValue)<=(21-playerHand2FV))) {
     return console.log('Player Hand 1 Wins')
